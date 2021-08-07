@@ -20,18 +20,16 @@ class Packet:
     packet_start = bytes([0xAA, 0xAA, 0xAA, 0xAA])
     device_address: int = 0
     cmd_code: CmdCode = CmdCode.PACK_ACK
-    packet_offset_addr: int = 0
-    data_field_length: int = 0
+    offset_address: int = 0
     data_fields: bytes = bytes([])
-    checksum: int = 0
 
     def inner_to_bytes(self) -> bytes:
         """Covert to bytes - without checksum or start"""
         output = struct.pack(
             # lIttle endian. 4 bytes for packet start, 1 byte device addr, 1 byte command code
-            # Unsigned short Packet offset
-            "<BBHH", self.device_address, self.cmd_code, self.packet_offset_addr,
-                self.data_field_length
+            # Unsigned short Packet offset_address
+            "<BBHH", self.device_address, self.cmd_code, self.offset_address,
+                len(self.data_fields)
         )
         output += self.data_fields
         return output
@@ -54,22 +52,17 @@ class LD07:
         if header[:4] != Packet.packet_start:
             raise RuntimeError(f"Incorrect packet start: {header[:4]}")
 
-        addr, cmd_code = header[4], header[5]
-        if cmd_code != expect_cmd:
-            raise RuntimeError(f"Expected {expect_cmd}. Got {cmd_code}")
-        if addr != self.device_address:
-            raise RuntimeError(f"Received packet for {addr}, accepting {self.device_address}")
-        p = Packet(cmd_code)        
-        p.offset, p.data_field_length = struct.unpack("<HH",  header[6:10])
+        p = Packet()
+        p.device_address, p.cmd_code = header[4], header[5]
+        p.offset_address, data_field_length = struct.unpack("<HH",  header[6:10])
 
-        header_sum = sum(header)
+        if data_field_length:
+            p.data_fields = self.uart.read(data_field_length)
 
-        p.data_fields = ser.read(p.data_field_length)
-
-        received_checksum = ser.read(1)
-        calculated_checksum = header_sum + sum(p.data_fields)
+        received_checksum = self.uart.read(1)[0]
+        calculated_checksum = checksum_bytes(p.inner_to_bytes())
         if received_checksum != calculated_checksum:
-            raise RuntimeError("Checksum did not match")
+            raise RuntimeError(f"Checksum received: {received_checksum} did not match checksum calculated {calculated_checksum}")
         
         return p
 
