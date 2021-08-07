@@ -112,18 +112,15 @@ class TestLD07HighLevel(TestCase):
         response_packet.cmd_cmd = ld_07.CmdCode.PACK_CONFIG_ADDRESS
         response_packet.device_address = 0x1
 
-        uart_mock = mock.Mock()
-        uart_create_mock = mock.Mock(return_value=uart_mock)
-
         def validate_sent_packet(sent_packet): 
             self.assertEqual(sent_packet.cmd_code, ld_07.CmdCode.PACK_CONFIG_ADDRESS)
             self.assertEqual(sent_packet.device_address, 0)
 
         lidar = ld_07.LD07(mock.sentinel.TX, mock.sentinel.RX)
-        # Test
         with mock.patch.object(lidar, "receive_packet", return_value=response_packet) as recv_mock, \
             mock.patch.object(lidar, "send_packet", side_effect=validate_sent_packet) as send_mock:
             
+            # Test            
             result = lidar.config_address()
             # Assert
             send_mock.assert_called()
@@ -131,3 +128,36 @@ class TestLD07HighLevel(TestCase):
 
         self.assertEqual(result, 1)
 
+    def test_get_correction_parameter_should_return_coefficients(self):
+        # setup
+        response_packet = ld_07.Packet()
+        response_packet.cmd_code = ld_07.CmdCode.PACK_GET_COE
+        response_packet.device_address = 0x1
+        # Use response modelled in the data sheet
+        response_packet.data_fields = bytes([
+            0x7b, 0x00, 0x00, 0x00,
+            0x79, 0x00, 0x00, 0x00,
+            0x81, 0x13, 0x00, 0x00, 
+            0x84, 0x15, 0x00, 0x00,
+            0x50, 0x00
+        ])
+
+        def validate_sent_packet(sent_packet): 
+            self.assertEqual(sent_packet.cmd_code, ld_07.CmdCode.PACK_GET_COE)
+            self.assertEqual(sent_packet.device_address, 0x1)
+
+        lidar = ld_07.LD07(mock.sentinel.TX, mock.sentinel.RX)
+        with mock.patch.object(lidar, "receive_packet", return_value=response_packet) as recv_mock, \
+            mock.patch.object(lidar, "send_packet", side_effect=validate_sent_packet) as send_mock:
+
+            # Test
+            k0, k1, b0, b1, points = lidar.get_correction_parameter()
+            # assert
+            send_mock.assert_called()
+            recv_mock.assert_called_once_with()
+            
+        self.assertEqual(k0, 0.0123)
+        self.assertEqual(k1, 0.0121)
+        self.assertEqual(b0, 0.4993)
+        self.assertEqual(b1, 0.5508)
+        self.assertEqual(points, 80)

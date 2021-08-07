@@ -42,9 +42,8 @@ class Packet:
 
 
 class LD07:    
-    def __init__(self, tx_pin, rx_pin, device_address:int = 0x1):
+    def __init__(self, tx_pin, rx_pin):
         self.uart = busio.UART(tx_pin, rx_pin, baud=921600)
-        self.device_address = device_address    
         
     def receive_packet(self):
         header = self.uart.read(10)
@@ -71,17 +70,20 @@ class LD07:
         self.uart.write(data)
 
     def config_address(self):
-        ## ODD - as there's no address data. Is this a Chip select type thing?
-        ## It says "cascaded" - not clear on how his will work.
+        """Issues the Config address command, and returns the received device connect count.
+        Looks like these are automatic when cascaded.
+        It says "cascaded" - not clear on how his will work.
+        Datasheet says this only needs to be used when multiple devices added.
+        """
         packet = Packet()
         packet.cmd_code = CmdCode.PACK_CONFIG_ADDRESS
-        # Datasheet says  send 0
+        # Datasheet says send 0
         packet.device_address = 0
 
         self.send_packet(packet)
         ## Data sheet doesn't mention an ACK, but that we'd receive a device count.
         packet = self.receive_packet()
-        device_count = {
+        device_count = { # yes it's really just counting bits.
             0x1: 1,
             0x3: 2,
             0x7: 3
@@ -90,4 +92,15 @@ class LD07:
         return device_count
 
     def get_correction_parameter(self):
-        pass
+        """Get the correction data for calibration. Each device has 3 calibration data.
+        Note - this implementation only supports one connected device for now.
+        """
+        packet = Packet()
+        packet.cmd_code = CmdCode.PACK_GET_COE
+        packet.device_address = 0x1 # get no.1 device.
+
+        self.send_packet(packet)
+        response = self.receive_packet()
+        coe_k0, coe_k1, coe_b0, coe_b1, points  = struct.unpack("<LLLLH", response.data_fields)
+        k0, k1, b0, b1 = coe_k0 / 10000, coe_k1 / 10000, coe_b0 / 10000, coe_b1 / 10000
+        return k0, k1, b0, b1, points
