@@ -4,7 +4,7 @@ from ld_07 import ld_07
 
 
 class TestPacket(TestCase):
-    def test_packet_to_bytes(self):
+    def test_packet_to_bytes_should_return_corret_bytes(self):
         # setup
         packet = ld_07.Packet()
         packet.device_address = 0x1
@@ -23,8 +23,8 @@ def uart_patched_ld07(uart_create_mock):
         yield ld_07.LD07(mock.sentinel.TX, mock.sentinel.RX)
 
 
-class TestLD07(TestCase):
-    def test_send_packet(self):
+class TestLD07LowLevel(TestCase):
+    def test_send_packet_should_turn_to_binary_and_send(self):
         # Setup
         packet = ld_07.Packet()
         packet.device_address = 0x1
@@ -42,7 +42,7 @@ class TestLD07(TestCase):
             bytes([0xAA, 0xAA, 0xAA, 0xAA, 0x1, 0x16, 0x00, 0x00, 0x00, 0x00, 0x17])
         )
 
-    def test_receive_simple_packet(self):
+    def test_receive_simple_packet_should_set_packet_data(self):
         # Setup
         packet_header = bytes([
             0xAA, 0xAA, 0xAA, 0xAA, 0x1, 0x16, 0x00, 0x00, 0x00, 0x00
@@ -102,3 +102,32 @@ class TestLD07(TestCase):
             # Test
             with self.assertRaises(RuntimeError):
                 packet = lidar.receive_packet()
+
+
+class TestLD07HighLevel(TestCase):
+
+    def test_config_address_should_send_correct_packet_with_return_for_1_device(self):
+        # setup
+        response_packet = ld_07.Packet()
+        response_packet.cmd_cmd = ld_07.CmdCode.PACK_CONFIG_ADDRESS
+        response_packet.device_address = 0x1
+
+        uart_mock = mock.Mock()
+        uart_create_mock = mock.Mock(return_value=uart_mock)
+
+        def validate_sent_packet(sent_packet): 
+            self.assertEqual(sent_packet.cmd_code, ld_07.CmdCode.PACK_CONFIG_ADDRESS)
+            self.assertEqual(sent_packet.device_address, 0)
+
+        lidar = ld_07.LD07(mock.sentinel.TX, mock.sentinel.RX)
+        # Test
+        with mock.patch.object(lidar, "receive_packet", return_value=response_packet) as recv_mock, \
+            mock.patch.object(lidar, "send_packet", side_effect=validate_sent_packet) as send_mock:
+            
+            result = lidar.config_address()
+            # Assert
+            send_mock.assert_called()
+            recv_mock.assert_called_once_with()
+
+        self.assertEqual(result, 1)
+

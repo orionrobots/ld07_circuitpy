@@ -70,7 +70,7 @@ class LD07:
         data = packet.to_bytes()
         self.uart.write(data)
 
-    def set_address(self, new_address):
+    def config_address(self):
         ## ODD - as there's no address data. Is this a Chip select type thing?
         ## It says "cascaded" - not clear on how his will work.
         packet = Packet()
@@ -81,6 +81,13 @@ class LD07:
         self.send_packet(packet)
         ## Data sheet doesn't mention an ACK, but that we'd receive a device count.
         packet = self.receive_packet()
+        device_count = {
+            0x1: 1,
+            0x3: 2,
+            0x7: 3
+        }[packet.device_address]
+
+        return device_count
 
     def get_correction_parameter(self):
         pass
