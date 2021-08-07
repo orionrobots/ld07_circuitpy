@@ -43,8 +43,6 @@ class Packet:
         return output
 
 
-
-
 class LD07:    
     def __init__(self, tx_pin, rx_pin, device_address:int = 0x1):
         self.uart = busio.UART(tx_pin, rx_pin, baud=921600)
