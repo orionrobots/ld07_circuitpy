@@ -14,3 +14,10 @@ The plan is:
     * LD07 will have high level - setup, change address, get reading methods
 
 * Demo code for the Raspberry Pi - using Matplotlib to make a polar plot.
+
+## links
+
+* https://circuitpython.readthedocs.io/en/6.3.x/shared-bindings/ulab/index.html
+* https://circuitpython.readthedocs.io/en/6.3.x/shared-bindings/busio/index.html#busio.UART
+* https://circuitpython.readthedocs.io/en/6.3.x/shared-bindings/struct/index.html
+* https://docs.python.org/3/library/struct.html?highlight=struct#module-struct

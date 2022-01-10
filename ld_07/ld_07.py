@@ -2,6 +2,7 @@ import struct
 from enum import IntEnum
 
 import busio
+import ulab
 
 
 class CmdCode(IntEnum):
@@ -104,3 +105,29 @@ class LD07:
         coe_k0, coe_k1, coe_b0, coe_b1, points  = struct.unpack("<LLLLH", response.data_fields)
         k0, k1, b0, b1 = coe_k0 / 10000, coe_k1 / 10000, coe_b0 / 10000, coe_b1 / 10000
         return k0, k1, b0, b1, points
+
+    def start_getting_distance(self):
+        """Get the distance data from the device.
+        The device will start to continuously send at this point."""
+        packet = Packet()
+        packet.cmd_code = CmdCode.PACK_GET_DISTANCE
+        packet.device_address = 0x1 # get no 1 device
+
+        self.send_packet(packet)
+        
+    def receive_distance(self, points=80):
+        """Read a distance reading from the buffer"""
+        packet = self.receive_packet()
+        timestamp = struct.unpack("<L", packet.data_fields[:4])
+        readings = ulab.frombuffer(packet.data_fields[4:], ulab.uint16)
+        dist_theta = []
+        dist_distance = []
+        for n in readings:
+            distance = (readings & 0xFF80) > 7
+            confidence = readings & 0x007F
+            if distance > 0:
+                dist, theta = angle_transform(dist, )
+
+
+
+
